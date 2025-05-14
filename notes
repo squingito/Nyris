@@ -1,0 +1,5 @@
+multi handler needs:
+hashmap for (fd -> sslsockets + function pointer + void pointer )
+threadpool
+g++ main3.cpp SslSock.cpp BaseHandler.cpp -g -o test3 -lcrypto -lssl
+
