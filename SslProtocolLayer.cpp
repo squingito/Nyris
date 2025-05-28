@@ -10,6 +10,7 @@ SslProtocolLayer::SslProtocolLayer(sslMode mode) {
 
 
 bool SslProtocolLayer::init(sslMode mode) {
+    printf("[Ssl] created\n");
     readBio = BIO_new(BIO_s_mem());
     writeBio = BIO_new(BIO_s_mem());
     ssl = SSL_new(ctx);
@@ -214,15 +215,23 @@ int64_t SslProtocolLayer::dwrite(std::vector<char>* input, std::vector<char>* ou
 
 }
 
-SslProtocolLayer::~SslProtocolLayer() {
+int64_t SslProtocolLayer::delSelf()  {
+    printf("[Ssl] destory\n");
     if (ssl) {
         SSL_shutdown(ssl); // Optional: graceful shutdown
         SSL_free(ssl);     // Frees the SSL structure and associated BIOs
         ssl = nullptr;
-    }
+    } else {
 
-    readBio = nullptr;
-    writeBio = nullptr;
+    if (readBio) {
+        BIO_free(readBio);
+        readBio = nullptr;
+    }
+    if (writeBio) {
+        BIO_free(writeBio);
+        writeBio = nullptr;
+    }
+}
 
  
 }

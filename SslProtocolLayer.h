@@ -46,7 +46,7 @@ class SslProtocolLayer: public ProtocolLayer {
 public:
 
     SslProtocolLayer(sslMode mode);
-    ~SslProtocolLayer();
+    //~SslProtocolLayer();
 
     
 
@@ -57,6 +57,7 @@ public:
     int64_t decrypt(std::vector<char>* in);
     static int64_t sslInit(char* cert, char* key);
     int64_t dread(std::vector<char>* rinput, std::vector<char>* routput, std::vector<char>* woutput);
+    int64_t delSelf();
     
 
     int64_t dwrite(std::vector<char>* input, std::vector<char>* output);

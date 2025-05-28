@@ -157,6 +157,7 @@ int64_t SecureConnectionManager::serverRunner() {
             DiscriptorWrap* hold = map[polls[oldGuys[i]].fd];
             map.erase(polls[oldGuys[i]].fd);
             delete hold;
+
             if (oldGuys[i] == polls.size() - 1) {
                 
                 polls.erase(polls.end() - 1);

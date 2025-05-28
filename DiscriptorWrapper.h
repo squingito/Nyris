@@ -42,6 +42,10 @@ class ProtocolLayer {
         virtual int64_t dread(std::vector<char>*, std::vector<char>*,std::vector<char>*) = 0;
         virtual int64_t dwrite(std::vector<char>*, std::vector<char>*) = 0;
         virtual int64_t dhandshake(std::vector<char>*) = 0;
+        virtual int64_t delSelf() {return 0;};
+        ~ProtocolLayer() {
+            //delSelf();
+        }
         //virtual int64_t writeReady();
         //virtual std::string print() = 0;
         

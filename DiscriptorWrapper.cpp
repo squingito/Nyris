@@ -7,7 +7,11 @@ DiscriptorWrap::DiscriptorWrap(int64_t fd, sockaddr_in addr, processor* proc) {
 }
 
 DiscriptorWrap::~DiscriptorWrap() {
-    if (secLayer != nullptr) delete secLayer;
+    if (secLayer != nullptr) {
+        printf("deleting sc layer00000000000000000000000");
+        secLayer->delSelf();
+        delete secLayer;
+    }
     if (proc != nullptr) delete proc;
 }
 
@@ -20,6 +24,7 @@ void DiscriptorWrap::init(int64_t fd, sockaddr_in addr, processor* proc) {
     flag.waitingForRead = 0;
     flag.waitingForWrite = 0;
     flag.writeInit = 1;
+    secLayer = nullptr;
     
 }
 
@@ -75,6 +80,7 @@ int64_t DiscriptorWrap::flushWrites() {
 
 
 int64_t DiscriptorWrap::addLayer(ProtocolLayer* in) {
+    if (secLayer != nullptr) delete secLayer;
     secLayer = in;
     return 0;
 }
