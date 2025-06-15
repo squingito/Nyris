@@ -1,5 +1,40 @@
 #include "SecureConnectionManager.h"
 
+ServerWrap::ServerWrap(int64_t fd, sockaddr_in addr, processor* proc, void (*run)(Request*)) {
+    this->init(fd, addr, proc);
+    this->run = run;
+    
+}
+
+TempRequest ServerWrap::getRunner() {
+    return run;
+}
+
+int64_t ServerWrap::setRunner(TempRequest in) {
+    run = in;
+}
+
+DiscriptorWrap* ServerWrap::serverHandler() {
+    int64_t fdHold = 0;
+    sockaddr_in valuesHold;
+    socklen_t len = sizeof(valuesHold);
+    fdHold = accept(fd, (sockaddr*) &(valuesHold), &len);
+                        
+    if (fdHold == -1) return nullptr;
+    DiscriptorWrap* wrap = new DiscriptorWrap(fdHold, valuesHold, nullptr);
+    if (this->secLayer != nullptr) {
+        secLayer->serverHandler(wrap);
+    }
+    
+    //wrap->addLayer(new SslProtocolLayer(SERVER_SOCK));
+
+
+    return wrap;
+}
+ 
+
+
+
 void SecureConnectionManagerRunner(Request* in) {
     if (in->str.size() > 0) {
         std::vector<char> toWrite;
@@ -15,31 +50,47 @@ void SecureConnectionManagerRunner(Request* in) {
 }
 
 SecureConnectionManager::SecureConnectionManager(int64_t port) {
-    init(port, nullptr);
+    init();
+    initServer(port, nullptr, new SslProtocolLayer(HEADER_SOCK));
+    initServer(port + 1, nullptr, nullptr);
 }
 
-int64_t SecureConnectionManager::init(int64_t port, void (*run)(Request*)) {
+int64_t SecureConnectionManager::initServer(int64_t port, void (*run)(Request*), SslProtocolLayer* in) {
     char str[INET_ADDRSTRLEN];
 
-    listeningSocket = socket(AF_INET, SOCK_STREAM, 0);
-    if (listeningSocket < 0) return -1;
+    int64_t listeningSocketCurrent= -1;
+    listeningSocketCurrent = socket(AF_INET, SOCK_STREAM, 0);
+    if (listeningSocketCurrent < 0) return -1;
 
     int enable = 1;
-    if (setsockopt(listeningSocket, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(enable)) < 0) return -2;
+    if (setsockopt(listeningSocketCurrent, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(enable)) < 0) return -2;
 
     memset(&lSockAddr, 0, sizeof(lSockAddr));
     lSockAddr.sin_family = AF_INET;
     lSockAddr.sin_addr.s_addr = htonl(INADDR_ANY);
     lSockAddr.sin_port = htons(port);
 
-    if (bind(listeningSocket, (struct sockaddr *) &lSockAddr, sizeof(lSockAddr)) < 0) return -3;
+    if (bind(listeningSocketCurrent, (struct sockaddr *) &lSockAddr, sizeof(lSockAddr)) < 0) return -3;
+    
 
-    pollfd ls;
-    ls.fd = listeningSocket;
-    ls.events = POLLIN;
-    polls.push_back(ls);
+    //pollfd ls;
+    //ls.fd = listeningSocketCurrent;
+    //ls.events = POLLIN;
+    //polls.push_back(ls);
+    ServerWrap* srap = new ServerWrap(listeningSocketCurrent, lSockAddr, nullptr, nullptr);
+    if (in != nullptr) {
+        srap->addLayer(in);
+    }
+    //map[ls.fd] = srap;
 
-    if (listen(listeningSocket, 128) < 0) return -4;
+    if (listen(listeningSocketCurrent, 128) < 0) return -4;
+    insert(listeningSocketCurrent, srap);
+    //listeningSocks.push_back()
+    return 0;
+
+}
+
+int64_t SecureConnectionManager::init() {
     queue = new ConcurrentPrioQueue<Request>();
 
     pool = new ManagedThreadPool<Request,void>(SecureConnectionManagerRunner, nullptr,  queue, 4);
@@ -48,6 +99,19 @@ int64_t SecureConnectionManager::init(int64_t port, void (*run)(Request*)) {
     pipeRead.fd = pipefds[0];
     pipeRead.events = POLLIN;
     polls.push_back(pipeRead);
+    return 0;
+}
+
+int64_t SecureConnectionManager::insert(int64_t fd, DiscriptorWrap* wrap) {
+    DiscriptorWrap* grabbed = map[fd];
+    if (grabbed != nullptr || wrap == nullptr) {
+        return -1;
+    }
+    {
+        std::lock_guard<std::mutex> lock(insertMutex);
+        insets.push_back(wrap);
+        
+    }
     return 0;
 
 }
@@ -69,6 +133,27 @@ int64_t SecureConnectionManager::serverRunner() {
     printf("pokemonGoin");
     
     while (1) {
+
+        //check for inserts and handel them 
+
+        {
+            std::lock_guard<std::mutex> lock(insertMutex);
+
+            for (int i = 0; i < insets.size(); i++) {
+                pollfd ls;
+                ls.fd = insets[i]->getFD();
+                if (dynamic_cast<ServerWrap*>(insets[i])) {
+                    ls.events = POLLIN;
+                } else {
+                    ls.events = POLLIN & POLLOUT;
+                }
+                
+                polls.push_back(ls);
+
+                map[ls.fd] = insets[i];
+            }
+            insets.clear();
+        }
         
 
         int64_t nready = poll(&(polls[0]), polls.size(), 50);
@@ -76,10 +161,10 @@ int64_t SecureConnectionManager::serverRunner() {
         printf("pokemonGoin %d\n", num);
 
         if (polls.size() >= 2) {
-            if (polls[1].revents & POLLIN) {
+            if (polls[0].revents & POLLIN) {
                 char buf[2048];
-                read(polls[1].fd, buf, 2048);
-                polls[1].revents = 0;
+                int64_t a = read(polls[0].fd, buf, 2048);
+                polls[0].revents = 0;
             }
         }
         
@@ -89,23 +174,21 @@ int64_t SecureConnectionManager::serverRunner() {
         num = num + 1;
         for (int i = 0; i < polls.size(); i++) {
             pollfd* toUse = &polls[i];
-            if (toUse->fd == listeningSocket) {
+            DiscriptorWrap* wrap = map[toUse->fd];
+            ServerWrap* serverWrap = dynamic_cast<ServerWrap*>(wrap);
+            if (toUse->fd == pipefds[0]) continue;
+            if (serverWrap != nullptr) {
                 if (toUse->revents & POLLIN) {
-                    int64_t fdHold = 0;
-                    sockaddr_in valuesHold;
-                    socklen_t len = sizeof(valuesHold);
-                    while (fdHold != -1) {
-                    
-                        fdHold = accept(listeningSocket, (sockaddr*) &(valuesHold), &len);
-                        
-                        if (fdHold == -1) break;
-                        DiscriptorWrap* wrap = new DiscriptorWrap(fdHold, valuesHold, nullptr);
-                        wrap->addLayer(new SslProtocolLayer(SERVER_SOCK));
-    
 
-                        map[fdHold] = wrap;
+                    while (1) {
+                    
+
+                        DiscriptorWrap* out = serverWrap->serverHandler();
+
+                        if (out == nullptr) break;
+                        map[out->getFD()] = out;
                         pollfd newGuy;
-                        newGuy.fd = fdHold;
+                        newGuy.fd = out->getFD();
                         newGuy.events = POLLIN | POLLERR | POLLHUP | POLLOUT;
                         //newGuy.revents = newGuy.revents | POLLOUT;
 
@@ -115,8 +198,8 @@ int64_t SecureConnectionManager::serverRunner() {
                     }
                     
                 }
-            } else if (i != 1) {
-                DiscriptorWrap* wrap = map[toUse->fd];
+            } else  {
+                
                 if (toUse->revents & POLLIN) {
 
                     std::vector<char> read;

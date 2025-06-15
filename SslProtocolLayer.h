@@ -31,7 +31,8 @@
 
 enum sslMode {
     CLIENT_SOCK,
-    SERVER_SOCK
+    SERVER_SOCK,
+    HEADER_SOCK
 };
 
 struct sslSockFlags {
@@ -61,6 +62,7 @@ public:
     
 
     int64_t dwrite(std::vector<char>* input, std::vector<char>* output);
+    void serverHandler(DiscriptorWrap*);
 
 private:
     SSL* ssl;

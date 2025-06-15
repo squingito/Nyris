@@ -36,16 +36,16 @@ struct processor {
     void* stateStore;
 };
 
+class DiscriptorWrap;
 
 class ProtocolLayer {
     public:
         virtual int64_t dread(std::vector<char>*, std::vector<char>*,std::vector<char>*) = 0;
         virtual int64_t dwrite(std::vector<char>*, std::vector<char>*) = 0;
         virtual int64_t dhandshake(std::vector<char>*) = 0;
+        virtual void serverHandler(DiscriptorWrap*) = 0;
         virtual int64_t delSelf() {return 0;};
-        ~ProtocolLayer() {
-            //delSelf();
-        }
+        
         //virtual int64_t writeReady();
         //virtual std::string print() = 0;
         
@@ -56,8 +56,9 @@ class ProtocolLayer {
 class DiscriptorWrap {
 
     public:
+        DiscriptorWrap();
         DiscriptorWrap(int64_t fd, sockaddr_in addr, processor* proc);
-        ~DiscriptorWrap();
+        virtual ~DiscriptorWrap();
         void init(int64_t fd, sockaddr_in addr, processor* proc);
 
         int64_t dread(std::vector<char>*);
@@ -75,9 +76,10 @@ class DiscriptorWrap {
 
         std::string print();
         flags* getFlags();
+
     
 
-    private:
+    protected:
         int64_t fd;
         std::vector<char> toRead;
         std::vector<char> toSend;

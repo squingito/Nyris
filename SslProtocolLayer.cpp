@@ -10,7 +10,9 @@ SslProtocolLayer::SslProtocolLayer(sslMode mode) {
 
 
 bool SslProtocolLayer::init(sslMode mode) {
+    if (mode == HEADER_SOCK) return false;
     printf("[Ssl] created\n");
+    this->mode = mode;
     readBio = BIO_new(BIO_s_mem());
     writeBio = BIO_new(BIO_s_mem());
     ssl = SSL_new(ctx);
@@ -24,6 +26,11 @@ bool SslProtocolLayer::init(sslMode mode) {
     SSL_set_bio(ssl, readBio, writeBio);
     return true;
 }
+
+void SslProtocolLayer::serverHandler(DiscriptorWrap* in) {
+    in->addLayer(new SslProtocolLayer(SERVER_SOCK));
+}
+
 
 int64_t SslProtocolLayer::sslDirect(std::vector<char>* woutput) {
 
@@ -217,6 +224,7 @@ int64_t SslProtocolLayer::dwrite(std::vector<char>* input, std::vector<char>* ou
 
 int64_t SslProtocolLayer::delSelf()  {
     printf("[Ssl] destory\n");
+    if (mode == HEADER_SOCK) return 0;
     if (ssl) {
         SSL_shutdown(ssl); // Optional: graceful shutdown
         SSL_free(ssl);     // Frees the SSL structure and associated BIOs
@@ -231,6 +239,7 @@ int64_t SslProtocolLayer::delSelf()  {
         BIO_free(writeBio);
         writeBio = nullptr;
     }
+    return 0;
 }
 
  

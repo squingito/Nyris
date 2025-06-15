@@ -1,6 +1,9 @@
 
 #include "DiscriptorWrapper.h"
 
+DiscriptorWrap::DiscriptorWrap() {
+    
+}
 
 DiscriptorWrap::DiscriptorWrap(int64_t fd, sockaddr_in addr, processor* proc) {
     init(fd, addr, proc);
@@ -8,7 +11,7 @@ DiscriptorWrap::DiscriptorWrap(int64_t fd, sockaddr_in addr, processor* proc) {
 
 DiscriptorWrap::~DiscriptorWrap() {
     if (secLayer != nullptr) {
-        printf("deleting sc layer00000000000000000000000");
+        //printf("deleting sc layer00000000000000000000000");
         secLayer->delSelf();
         delete secLayer;
     }
@@ -36,6 +39,10 @@ bool DiscriptorWrap::dataToWrite() {
     return toSend.size() != 0;
 }
 
+int64_t DiscriptorWrap::getFD() {
+    return fd;
+}
+
 
 int64_t DiscriptorWrap::dread(std::vector<char>* out) {
     char readdd[STD_BUFFER_SIZE];
@@ -60,7 +67,7 @@ int64_t DiscriptorWrap::dread(std::vector<char>* out) {
 }
 
 int64_t DiscriptorWrap::dwrite(std::vector<char>* in) {
-    //std::lock_guard<std::mutex> lock(this->writeLock);
+    std::lock_guard<std::mutex> lock(this->writeLock);
     if (secLayer != nullptr) {
         secLayer->dwrite(in, &toSend);
     } else {
@@ -70,7 +77,7 @@ int64_t DiscriptorWrap::dwrite(std::vector<char>* in) {
 }
 
 int64_t DiscriptorWrap::flushWrites() {
-
+    std::lock_guard<std::mutex> lock(this->writeLock);
     if (toSend.size() == 0) return 0;
     int64_t a = write(fd, &(toSend)[0], toSend.size());
     toSend.clear();

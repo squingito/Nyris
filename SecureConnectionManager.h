@@ -6,8 +6,22 @@
 #include "DiscriptorWrapper.h"
 #include "SslProtocolLayer.h"
 
+struct Request;
+
+using TempRequest = void (*)(Request*);
+
 class SecureConnectionManager;
 
+class ServerWrap: public DiscriptorWrap {
+private:
+    void (*run)(Request*);
+
+public:
+    ServerWrap(int64_t fd, sockaddr_in addr, processor* proc, void (*run)(Request*));
+    TempRequest getRunner();
+    int64_t setRunner(void (*out)(Request*));
+    DiscriptorWrap* serverHandler();
+};
 
 
 struct Request {
@@ -23,22 +37,29 @@ struct Request {
 };
 
 void SecureConnectionManagerRunner(Request*);
-
+/*
 struct ServerTools {
     SecureConnectionManager* manager;
     DiscriptorWrap* sender;
     std::string recieved;
 };
+*/
+
+
 
 
 class SecureConnectionManager {
     public:
         SecureConnectionManager(int64_t);
-        int64_t init(int64_t port, void (*run)(Request*));
+        int64_t init();
         int64_t serverRunner();
         int64_t wakeUpCall();
+        int64_t insert(int64_t, DiscriptorWrap*);
+        //int64_t insertServer(int64_t, ServerWrap*);
+        int64_t initServer(int64_t port, void (*run)(Request*), SslProtocolLayer*);
 
     private:
+        
         int64_t listeningSocket;
         sockaddr_in lSockAddr;
 
@@ -48,6 +69,10 @@ class SecureConnectionManager {
         ManagedThreadPool<Request,void>* pool;
         std::vector<pollfd> polls;
         std::unordered_map<int64_t, DiscriptorWrap*> map;
+
+        std::vector<DiscriptorWrap*> insets;
+
+        std::mutex insertMutex;
 
         std::mutex pipeMutex;
         int32_t pipefds[2];
