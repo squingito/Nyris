@@ -76,6 +76,7 @@ class DiscriptorWrap {
 
         std::string print();
         flags* getFlags();
+        int64_t bindName(std::string);
 
     
 
@@ -84,6 +85,7 @@ class DiscriptorWrap {
         std::vector<char> toRead;
         std::vector<char> toSend;
         sockaddr_in address;
+        std::string bindingName;
 
 
         ProtocolLayer* secLayer;

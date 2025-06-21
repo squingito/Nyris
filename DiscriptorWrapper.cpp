@@ -27,6 +27,7 @@ void DiscriptorWrap::init(int64_t fd, sockaddr_in addr, processor* proc) {
     flag.waitingForRead = 0;
     flag.waitingForWrite = 0;
     flag.writeInit = 1;
+    bindingName = "";
     secLayer = nullptr;
     
 }
@@ -34,6 +35,12 @@ void DiscriptorWrap::init(int64_t fd, sockaddr_in addr, processor* proc) {
 flags* DiscriptorWrap::getFlags() {
     return &flag;
 }
+
+int64_t DiscriptorWrap::bindName(std::string in) {
+    std::lock_guard lock(writeLock);
+    bindingName = in;
+    return 0;
+} 
 
 bool DiscriptorWrap::dataToWrite() {
     return toSend.size() != 0;

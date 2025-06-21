@@ -57,6 +57,7 @@ class SecureConnectionManager {
         int64_t insert(int64_t, DiscriptorWrap*);
         //int64_t insertServer(int64_t, ServerWrap*);
         int64_t initServer(int64_t port, void (*run)(Request*), SslProtocolLayer*);
+        int64_t bindName(int64_t, std::string);
 
     private:
         
@@ -69,6 +70,9 @@ class SecureConnectionManager {
         ManagedThreadPool<Request,void>* pool;
         std::vector<pollfd> polls;
         std::unordered_map<int64_t, DiscriptorWrap*> map;
+        std::unordered_map<std::string, DiscriptorWrap*> bindingMap;
+
+        std::mutex bindingLock;
 
         std::vector<DiscriptorWrap*> insets;
 

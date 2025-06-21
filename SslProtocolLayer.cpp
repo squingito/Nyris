@@ -241,6 +241,7 @@ int64_t SslProtocolLayer::delSelf()  {
     }
     return 0;
 }
+return 0;
 
  
 }

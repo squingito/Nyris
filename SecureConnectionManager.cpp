@@ -124,6 +124,17 @@ int64_t SecureConnectionManager::wakeUpCall() {
     return write(pipefds[1], input, 1);
 }
 
+int64_t SecureConnectionManager::bindName(int64_t in, std::string binding) {
+    std::lock_guard lock(bindingLock);
+    DiscriptorWrap* bindi = map[in];
+    if (bindingMap[binding] != nullptr) return -1;
+    if (bindi == nullptr) return -1;
+    bindingMap[binding] = bindi;
+    
+    bindi->bindName(binding);
+    return 0;
+}
+
 
 int64_t SecureConnectionManager::serverRunner() {
     printf("runna\n");
